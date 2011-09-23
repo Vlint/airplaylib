@@ -36,4 +36,10 @@ resolve_host:
     Static function that attempts to resolve the hostname given to an ip address.  
     Has optional timeout parameter
 
+Future Features:
+    I plan to add a class that is an expansion of the AirFlick function can send a file to appletv and not just a url.
+    The back-ends are basically the same you just need to host the file
+    I like to use mongoose server but I have not figured out how to properly distribute it on github
+
+
 
