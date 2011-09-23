@@ -20,8 +20,8 @@ Youtube:
     This class gets the appletv compatible urls from a youtube url
     Must pass the youtube.com url to the constructor: Youtube(url)
     Includes:
-      getMP4s() - returns a list of format dictionaries all of type MP4
-      getAirplayURL() - will attempt to select the highest quality video and is airplay compatible
+      getMP4s() - returns a list of format dictionaries all of format MP4
+      getAirplayURL() - will attempt to select the highest quality video that is airplay compatible
 
 findAppleTV:
     This class uses pybonjour to locate appletvs on the local network
