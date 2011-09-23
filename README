@@ -28,6 +28,7 @@ findAppleTV:
     As soon as you construct this class it will begin searching the network asynchronously
     self.atvs is the internal list that stores the appletvs found thus far
     The items in self.atvs are of type AppleTV
+
 AppleTV:
     Simple class to store the hostname and the ip of appletvs found by findAppleTV
 
