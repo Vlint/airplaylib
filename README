@@ -1,9 +1,10 @@
 I have truly enjoyed tinkering around with Apples Airplay technology and I use it quite a lot for my own setup.
-Becuase of how much I use common features with airplay I decided to right a library that handles them.
+Becuase of how much I use common features with airplay I decided to write a library that handles them.
 
 AirFlick:
     This is a static function that when given and ip and url in the form (ip, url) will send the url to the appletv at ip.
     Very little error checking is done as it is expected that you will handle this yourself with your classes in the library
+
 AirplayControl:
     This is a class to handle the control of an appletv.  
     In order to work you must set the IP of the object with AirplayControl.ip or the constructor: AirplayControl(ip)
