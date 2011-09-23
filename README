@@ -1,0 +1,37 @@
+I have truly enjoyed tinkering around with Apples Airplay technology and I use it quite a lot for my own setup.
+Becuase of how much I use common features with airplay I decided to right a library that handles them.
+
+AirFlick:
+    This is a static function that when given and ip and url in the form (ip, url) will send the url to the appletv at ip.
+    Very little error checking is done as it is expected that you will handle this yourself with your classes in the library
+AirplayControl:
+    This is a class to handle the control of an appletv.  
+    In order to work you must set the IP of the object with AirplayControl.ip or the constructor: AirplayControl(ip)
+    Includes:
+      flick(url) - Send url to ip
+      pause() - pause the video on ip
+      setRate(rate) - set the rate of the video on ip
+      scrub(v) - scrub to the position v of the video on ip (currently does not work)
+      play() - play the video on ip
+      stop() - stop the video on ip
+
+Youtube:
+    This class gets the appletv compatible urls from a youtube url
+    Must pass the youtube.com url to the constructor: Youtube(url)
+    Includes:
+      getMP4s() - returns a list of format dictionaries all of type MP4
+      getAirplayURL() - will attempt to select the highest quality video and is airplay compatible
+
+findAppleTV:
+    This class uses pybonjour to locate appletvs on the local network
+    As soon as you construct this class it will begin searching the network asynchronously
+    self.atvs is the internal list that stores the appletvs found thus far
+    The items in self.atvs are of type AppleTV
+AppleTV:
+    Simple class to store the hostname and the ip of appletvs found by findAppleTV
+
+resolve_host:
+    Static function that attempts to resolve the hostname given to an ip address.  
+    Has optional timeout parameter
+
+
