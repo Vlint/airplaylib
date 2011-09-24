@@ -36,6 +36,32 @@ resolve_host:
     Static function that attempts to resolve the hostname given to an ip address.  
     Has optional timeout parameter
 
+Example Usage:
+	#first need to find appletvs
+	a = findAppleTV()
+	#findAppleTV() runs in the background so you need to give it a second to get results
+	time.sleep(1)
+
+	if len(a) <1:
+		#this means no apple tvs...raise error
+	elif len(a) >1:
+		#this means more than one appletvs found...handle accordingly
+	atv = a.atvs[0]	
+	print atv.hostname
+	print atv.ip
+
+	#next need to get a url...you could use any given url or try the Youtube class
+
+	y = Youtube('youtube url')
+
+	url = y.getAirplayURL()
+
+	#now we have a url and an ip so we can send it
+
+	if url is not None:
+		AirFlick(url, atv.ip)
+		
+
 Future Features:
     I plan to add a class that is an expansion of the AirFlick function can send a file to appletv and not just a url.
     The back-ends are basically the same you just need to host the file
