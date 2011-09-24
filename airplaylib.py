@@ -12,7 +12,8 @@
 
 __version__ = '0.0.1'
 
-
+import random
+random.seed()
 import urllib2
 import urllib
 import socket
@@ -23,12 +24,13 @@ import threading
 import re
 import plistlib
 import pybonjour
+import os
 
 class TimeoutException(Exception):
 	pass
 
 ip_resolve = None
-__all__ = ['AirFlick', 'findAppleTV', 'resolve_host', 'AirplayControl']
+__all__ = ['AirFlick', 'findAppleTV', 'resolve_host', 'AirplayControl', 'AirFlickFile', 'Youtube']
 
 def AirFlick(url, ip):
 	if url is None or len(str(url)) < 1:
@@ -43,6 +45,91 @@ def AirFlick(url, ip):
 	except Exception, e:
 		raise("Could not connect to ApppleTV: " + str(e))
 	return
+	def __del__(self):
+		try:
+			os.remove(self.serve_file_path)
+		except Exception:
+			pass
+		del self.server
+
+class AirFlickFile:
+	def __init__(self, file_path, ip=None, local_ip = None, port="8199", tmp_folder="/tmp/airplay/"):
+		if not os.path.isfile(file_path):
+			raise Exception('File ' + str(path) + ' does not exist')
+		self.file_path = file_path
+		self.serve_file = self.random_name(self.file_path)
+
+		if not os.path.isdir(tmp_folder):
+			os.mkdir(tmp_folder)
+		self.serve_file_path = os.path.join('/tmp/airplay', self.serve_file)
+		os.symlink(os.path.abspath(self.file_path), self.serve_file_path)
+
+		self.ip = ip
+		self.local_ip = local_ip
+		self.port = port
+		self.local_ips = list()
+		if self.local_ip is None:
+			self.get_local_ips()
+		self.server = None
+		self.start()
+
+	def send(self):
+		if self.ip is None:
+			raise Exception("No Apple TV ip given")
+		AirFlick(self.makeURL(), self.ip)	
+	
+	def getURL(self):
+		if self.local_ip is None or len(self.local_ip) < 1:
+			self.get_local_ips()
+			if len(self.local_ips) < 1:
+				raise Exception("No local ips found")
+			else:
+				self.local_ip = self.local_ips[0]
+
+		url = "http://" + str(self.local_ip).strip() + ":" + str(self.port).strip() + "/" + self.serve_file.strip()
+		return url
+
+	
+	def start(self):
+		import mongoose
+		self.server = mongoose.Mongoose(None, listening_ports=self.port, enable_directory_listing='no', document_root=os.path.dirname(self.serve_file_path))
+
+	def get_local_ips(self):
+		self.local_ips = [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")]
+		if len(self.local_ips) == 1:
+			self.local_ip = self.local_ips[0]
+
+	def random_name(self, f):
+		l = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
+		final = ""
+		for x in range(0, 8):
+			final += random.choice(l)
+		final += "-"
+		for x in range(0, 4):
+			final += random.choice(l)
+		final += "-"
+		for x in range(0, 4):
+			final += random.choice(l)
+		final += "-"
+		for x in range(0, 4):
+			final += random.choice(l)
+		final += "-"
+		for x in range(0, 12):
+			final += random.choice(l)
+		ext = ""
+		try:
+			ext = os.path.splitext(os.path.basename(f))[1]
+		except Exception:
+			pass
+		return final + ext
+
+	def __del__(self):
+		try:
+			os.remove(self.serve_file_path)
+		except Exception:
+			pass
+		del self.server
+
 
 class ServerInfoPoll(threading.Thread):
 	def __init__(self, parent):
@@ -176,6 +263,7 @@ class Youtube:
 				print e
 				
 		return urls
+
 	def getAirplayURL(self):
 		mp4_list = self.getMP4s()
 		formats = {'1080': 0, '720': 1, 'hd' : 2, 'high': 3, 'medium' : 4, '480': 5, 'low' : 6}	
@@ -195,6 +283,9 @@ class Youtube:
 							lowest = f
 				if not found:
 					not_found = f
+			if not lowest:
+				return not_found['url']
+			return lowest['url']
 		else:
 			return mp4_list[0]['url']
 	
@@ -378,10 +469,36 @@ class findAppleTV(threading.Thread):
 				self.atvs.append(atv)
 			self.queried.append(True)
 		return
+	def __str__(self):
+		temp = "["
+		for i, item in list(enumerate(self.atvs, start=1)):
+			if i is not len(self.atvs):
+				temp += "%s, " % str(item)
+			else:
+				temp += str(item)
+		temp += "]"
+		return temp
+	def __getitem__(self, key):
+		for item in self.atvs:
+			if str(key) in str(item.ip).lower() or str(key) in str(item.hostname).lower():
+				return item
+		return None
+
 class AppleTV:
 	def __init__(self, hostname, ip):
 		self.hostname = hostname
 		self.ip = ip
+	def __repr__(self):
+		temp = "('%s', '%s')" % (self.hostname, self.ip)
+		return temp
+	def __str__(self):
+		return self.__repr__()
+	def __eq__(self, item):
+		if isinstance(item, AppleTV):
+			return (self.hostname == item.hostname and self.ip == item.ip)
+		else:
+			return False
+		
 
 def query_host_callback(sdREf, flags, interfaceIndex, errorCode, fullname, rrtype, rrclass, rdata, ttl):
 	import pybonjour
