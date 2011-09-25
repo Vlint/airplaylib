@@ -38,34 +38,31 @@ resolve_host:
 
 Example Usage:
 	#first need to find appletvs
-	a = findAppleTV()
+	f = findAppleTV()
 	#findAppleTV() runs in the background so you need to give it a second to get results
 	time.sleep(1)
 
-	if len(a) <1:
+	if len(f) <1:
 		#this means no apple tvs...raise error
-	elif len(a) >1:
+	elif len(f) >1:
 		#this means more than one appletvs found...handle accordingly
-	atv = a.atvs[0]	
+	atv = f[0]  #if you know the name you can use atv = f['appletv']
+
 	print atv.hostname
 	print atv.ip
 
 	#next need to get a url...you could use any given url or try the Youtube class
 
 	y = Youtube('youtube url')
+	
+	#Youtube is a subclass of Flickable which means it has a getURL() method
 
-	url = y.getAirplayURL()
-
-	#now we have a url and an ip so we can send it
-
-	if url is not None:
-		AirFlick(url, atv.ip)
-		
-
-Future Features:
-    I plan to add a class that is an expansion of the AirFlick function can send a file to appletv and not just a url.
-    The back-ends are basically the same you just need to host the file
-    I like to use mongoose server but I have not figured out how to properly distribute it on github
-
-
+	atv.flick(y)
+	
+	#you can pass an object that is a subclass of Flickable with a getURL() method 
+	#or you can just pass a string to the url
+	
+	f = AirFile('path to file')
+	atv.flick(f)
+	
 
