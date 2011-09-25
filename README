@@ -4,6 +4,7 @@ Becuase of how much I use common features with airplay I decided to write a libr
 AirFlick:
     This is a static function that when given an ip and url in the form (ip, url), it will send the url to the appletv at ip.
     Very little error checking is done as it is expected that you will handle this yourself with other classes in this library
+
 Flickable
 	Abstract class to be inhereted by classes that handle URLs for AppleTV
 AirFile
