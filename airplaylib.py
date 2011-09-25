@@ -499,6 +499,9 @@ class findAppleTV(threading.Thread):
 	def __iter__(self):
 		return iter(self._atvs)
 
+	def items(self):
+		return self._atvs
+
 	def iterkeys(self):
 		return self.__iter__()
 
