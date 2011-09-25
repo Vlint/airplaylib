@@ -46,7 +46,11 @@ Example Usage:
 		#this means no apple tvs...raise error
 	elif len(f) >1:
 		#this means more than one appletvs found...handle accordingly
-	atv = f[0]  #if you know the name you can use atv = f['appletv']
+	#there are several options here....here are a few
+	1. for i in f: #findAppleTV is an iterable class
+	2. if 'apple-tv-name' in f: #can test for hostname or ip with this statement
+		atv = f['apple-tv-name']
+	3. atv = f[0]
 
 	print atv.hostname
 	print atv.ip
