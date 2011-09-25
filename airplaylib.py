@@ -30,7 +30,7 @@ class TimeoutException(Exception):
 	pass
 
 ip_resolve = None
-__all__ = ['AirFlick', 'findAppleTV', 'resolve_host', 'AirplayControl', 'AirFlickFile', 'Youtube']
+__all__ = ['AirFlick', 'findAppleTV', 'resolve_host', 'AirplayControl', 'AirFile', 'Youtube', 'Flickable']
 
 def AirFlick(url, ip):
 	if url is None or len(str(url)) < 1:
@@ -51,12 +51,20 @@ def AirFlick(url, ip):
 		except Exception:
 			pass
 		del self.server
+class Flickable:
+	pass		
+	
 
-class AirFlickFile:
-	def __init__(self, file_path, ip=None, local_ip = None, port="8199", tmp_folder="/tmp/airplay/"):
+class AirFile(Flickable):
+	def __init__(self, file_path, local_ip = None, port="8199", tmp_folder="/tmp/airplay/"):
 		if not os.path.isfile(file_path):
-			raise Exception('File ' + str(path) + ' does not exist')
-		self.file_path = file_path
+			temp = re.sub(r"\\", '', file_path)
+			if not os.path.isfile(temp):
+				raise Exception('File ' + str(file_path) + ' does not exist')
+			else:
+				self.file_path = temp
+		else:
+			self.file_path = file_path
 		self.serve_file = self.random_name(self.file_path)
 
 		if not os.path.isdir(tmp_folder):
@@ -64,7 +72,6 @@ class AirFlickFile:
 		self.serve_file_path = os.path.join('/tmp/airplay', self.serve_file)
 		os.symlink(os.path.abspath(self.file_path), self.serve_file_path)
 
-		self.ip = ip
 		self.local_ip = local_ip
 		self.port = port
 		self.local_ips = list()
@@ -73,11 +80,6 @@ class AirFlickFile:
 		self.server = None
 		self.start()
 
-	def send(self):
-		if self.ip is None:
-			raise Exception("No Apple TV ip given")
-		AirFlick(self.makeURL(), self.ip)	
-	
 	def getURL(self):
 		if self.local_ip is None or len(self.local_ip) < 1:
 			self.get_local_ips()
@@ -89,7 +91,6 @@ class AirFlickFile:
 		url = "http://" + str(self.local_ip).strip() + ":" + str(self.port).strip() + "/" + self.serve_file.strip()
 		return url
 
-	
 	def start(self):
 		import mongoose
 		self.server = mongoose.Mongoose(None, listening_ports=self.port, enable_directory_listing='no', document_root=os.path.dirname(self.serve_file_path))
@@ -130,49 +131,53 @@ class AirFlickFile:
 			pass
 		del self.server
 
-
-class ServerInfoPoll(threading.Thread):
-	def __init__(self, parent):
-		threading.Thread.__init__(self)
-		self.parent = parent
-		self.doRun = True
-
-	def run(self):
-		while self.doRun:
-			try:
-				p = self.parent.playback_info()
-				if p['duration'] > 0:
-					self.parent._isPlaying = True
-					self.parent.duration = p['duration']
-				else:
-					self.parent._isPlaying = False
-				self.parent.position = p['position']	
-				self.parent.rate = p['rate']
-			except Exception:
-				pass
-			time.sleep(.5)
-	def stop(self):
-		self.doRun = False
-		self.join()	
+class NoneIP(Exception):
+	pass
 
 
-class AirplayControl:
-	class NoneIP(Exception):
-		pass
-			
-
+class AirplayControl(threading.Thread):
 	def __init__(self, ip=None, port='7000', rate=0.00000):
+		threading.Thread.__init__(self)
 		self.ip = ip
 		self.port = port
 		self.rate = rate
 		self._isPlaying = False
-		self.infoPoll = ServerInfoPoll(self)
-		self.infoPoll.start()
 		self.duration = 0.0
 		self.position = 0.0
+		self.started = threading.Event()
+		self.setDaemon(True)
+
+	def update_info(self):
+		#while not self._stop.isSet():
+		try:
+			p = self._playback_info()
+			if p['duration'] > 0:
+				self._isPlaying = True
+				self.duration = p['duration']
+			else:
+				self._isPlaying = False
+			self.position = p['position']	
+			self.rate = p['rate']
+		except Exception:
+			pass
+			#time.sleep(.5)
+	def run(self):
+		while self.started.isSet():
+			self.update_info()
+			self.started.wait(0.5)
+
+	def start(self):
+		self.started.set()
+		threading.Thread.start(self)
+		
+	def isRunning(self):
+		return self.started.isSet()
+	
+	def cancel(self):
+		self.started.clear()
 
 	def __del__(self):
-		self.infoPoll.stop()
+		self.cancel()
 
 	def flick(self, url):
 		self.checkIP()
@@ -218,14 +223,16 @@ class AirplayControl:
 
 	def play(self):
 		self.checkIP()
-		if self.rate >= 1:
-			return
 		self.rate = 1.00000
 		data = '/rate?value=' + str(self.rate)
 		self._execute(data)
 		self._isPlaying = True
 
-	def playback_info(self):
+	def info(self):
+		self.update_info()
+		return self._playback_info()
+
+	def _playback_info(self):
 		self.checkIP()
 		data = '/playback-info'	
 		f = self._execute(data)
@@ -245,7 +252,7 @@ class AirplayControl:
 		f = urllib2.urlopen(req)
 		return f.read()
 		
-class Youtube:	
+class Youtube(Flickable):	
 	def __init__(self, url):
 		self.url = url
 		self.formatList = list()
@@ -264,7 +271,7 @@ class Youtube:
 				
 		return urls
 
-	def getAirplayURL(self):
+	def getURL(self):
 		mp4_list = self.getMP4s()
 		formats = {'1080': 0, '720': 1, 'hd' : 2, 'high': 3, 'medium' : 4, '480': 5, 'low' : 6}	
 		if len(mp4_list) < 1:
@@ -387,12 +394,12 @@ class findAppleTV(threading.Thread):
 		threading.Thread.__init__(self)
 		self.resolved = []
 		self.queried = []
-		self.atvs = []
+		self._atvs = []
 		self.setDaemon(True)
 		self.start()
 
 	def __len__(self):
-		return len(self.atvs)
+		return len(self._atvs)
 
 	def run(self):
 		timeout = 5
@@ -464,30 +471,84 @@ class findAppleTV(threading.Thread):
 
 	def query_record_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname, rrtype, rrclass, rdata, ttl):
 		if errorCode == pybonjour.kDNSServiceErr_NoError:
-			atv = AppleTV(fullname, socket.inet_ntoa(rdata))
-			if atv not in self.atvs:
-				self.atvs.append(atv)
+			atv = AppleTV(str(fullname), str(socket.inet_ntoa(rdata)))
+			if atv not in self._atvs:
+				self._atvs.append(atv)
 			self.queried.append(True)
 		return
+
 	def __str__(self):
 		temp = "["
-		for i, item in list(enumerate(self.atvs, start=1)):
-			if i is not len(self.atvs):
+		for i, item in list(enumerate(self._atvs, start=1)):
+			if i is not len(self._atvs):
 				temp += "%s, " % str(item)
 			else:
 				temp += str(item)
 		temp += "]"
 		return temp
-	def __getitem__(self, key):
-		for item in self.atvs:
-			if str(key) in str(item.ip).lower() or str(key) in str(item.hostname).lower():
-				return item
-		return None
+	def itervalues(self):
+		l = list()
+		for x in self._atvs:
+			l.append(x.ip)
+		return iter(l)
+	def iteritems(self):
+		l = list()
+		for x in self._atvs:
+			l.append((x.hostname, x.ip))
+		return iter(l)
+	def __iter__(self):
+		return iter(self._atvs)
 
-class AppleTV:
+	def iterkeys(self):
+		return self.__iter__()
+
+	def __getitem__(self, key):
+		if isinstance(key, int):
+			temp = self._atvs[key]
+			temp.start()
+			return
+		elif isinstance(key, str):
+			for item in self._atvs:
+				if key.lower() in str(item.ip).lower() or key.lower() in str(item.hostname).lower():
+					item.start()
+					return item
+		else:
+			raise TypeError
+		raise KeyError
+
+	def __contains__(self, item):
+		if isinstance(item, AppleTV):
+			return (item in self._atvs)
+		elif isinstance(item, str):
+			for a in self._atvs:
+				if item.lower() in str(a.ip).lower() or item.lower() in str(a.hostname).lower():
+					return True
+		else:
+			raise TypeError
+		return False
+
+class AppleTV(AirplayControl):
 	def __init__(self, hostname, ip):
 		self.hostname = hostname
 		self.ip = ip
+		AirplayControl.__init__(self, self.ip)
+
+	def flick(self, flick_object):
+		if issubclass(flick_object.__class__, Flickable):
+			url = None
+			try:
+				url = flick_object.getURL()
+			except Exception:
+				raise Exception("%s does not have getURL() interface method" % str(flick_object.__class__))
+			if url is not None and issubclass(url.__class__, str) and len(url) > 0:
+				AirFlick(url, self.ip)
+			else:
+				raise Exception("%s did not return a proper value from getURL() interface" % str(flick_object.__class__))
+		elif issubclass(flick_object.__class__, str):
+			AirFlick(flick_object, self.ip)
+		else:
+			raise TypeError
+
 	def __repr__(self):
 		temp = "('%s', '%s')" % (self.hostname, self.ip)
 		return temp
