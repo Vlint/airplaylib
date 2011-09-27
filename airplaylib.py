@@ -23,8 +23,8 @@ import signal
 import threading
 import re
 import plistlib
-import pybonjour
 import os
+import httplib
 
 class TimeoutException(Exception):
 	pass
@@ -45,12 +45,7 @@ def AirFlick(url, ip):
 	except Exception, e:
 		raise("Could not connect to ApppleTV: " + str(e))
 	return
-	def __del__(self):
-		try:
-			os.remove(self.serve_file_path)
-		except Exception:
-			pass
-		del self.server
+
 class Flickable:
 	pass		
 	
@@ -164,7 +159,7 @@ class AirplayControl(threading.Thread):
 	def run(self):
 		while self.started.isSet():
 			self.update_info()
-			self.started.wait(0.5)
+			time.sleep(.5)
 
 	def start(self):
 		self.started.set()
@@ -214,12 +209,11 @@ class AirplayControl(threading.Thread):
 		self._execute(data)
 
 	def scrub(self, p):
-		if float(p) > self.duration or float(p) < 0:
-			return
-		data = '/scrub?position=' + str(p)
-		print data
-		self._execute(data)
-	
+		self.checkIP()
+		if float(p) > float(self.duration) or float(p) < 0:
+			raise Exception('Invalid scrub position')
+		data = '/scrub?position=%######f' % round(p, 6)
+		self._execute(data, post=True)
 
 	def play(self):
 		self.checkIP()
@@ -245,12 +239,31 @@ class AirplayControl(threading.Thread):
 		data = '/stop'
 		self._execute(data)
 		self._isPlaying = False
-	
-	def _execute(self, data):
+
+	def _flick(self, url, start='0.004067'):
 		self.checkIP()
-		req = urllib2.Request('http://' + str(self.ip) + ":" + str(self.port) + data)
-		f = urllib2.urlopen(req)
-		return f.read()
+		if url is None or len(str(url)) < 1:
+			raise Exception("Invalid URL: " + str(url))
+		data = '/play'
+		post = 'Content-Location: ' + url + '\nStart-Position:%######f\n' % round(float(start), 6)
+		return self._execute(data, post)
+	
+	def _execute(self, data, post=False):
+		self.checkIP()
+		if post:
+			if not isinstance(post, str):
+				post = ''
+		else:
+			post = None
+		req = urllib2.Request('http://' + str(self.ip) + ":" + str(self.port) + data, post)
+		req.add_header('User-Agent', 'MediaControl/1.0')
+		o = urllib2.build_opener(AirplayHTTPHandler)
+
+		try:
+			f = o.open(req)
+			return f.read()
+		except Exception:
+			raise Exception("Could not make airplay request")
 		
 class Youtube(Flickable):	
 	def __init__(self, url):
@@ -402,6 +415,7 @@ class findAppleTV(threading.Thread):
 		return len(self._atvs)
 
 	def run(self):
+		import pybonjour
 		timeout = 5
 		service_name = "_airplay._tcp"
 		browse_sdRef = pybonjour.DNSServiceBrowse(regtype = service_name, callBack = self.browse_callback)
@@ -433,6 +447,7 @@ class findAppleTV(threading.Thread):
 
 		
 	def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname, hosttarget, port, txtRecord):
+		import pybonjour
 		timeout = 5
 		if errorCode != pybonjour.kDNSServiceErr_NoError:
 			return
@@ -450,6 +465,7 @@ class findAppleTV(threading.Thread):
 		self.resolved.append(True)
 
 	def browse_callback(self, sdRef, flags, interfaceIndex, errorCode, serviceName, regtype, replyDomain):
+		import pybonjour
 		timeout = 5
 		if errorCode != pybonjour.kDNSServiceErr_NoError:
 			return
@@ -470,6 +486,7 @@ class findAppleTV(threading.Thread):
 		return 
 
 	def query_record_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname, rrtype, rrclass, rdata, ttl):
+		import pybonjour
 		if errorCode == pybonjour.kDNSServiceErr_NoError:
 			atv = AppleTV(str(fullname), str(socket.inet_ntoa(rdata)))
 			if atv not in self._atvs:
@@ -486,6 +503,9 @@ class findAppleTV(threading.Thread):
 				temp += str(item)
 		temp += "]"
 		return temp
+	def __repr__(self):
+		return str(self)
+
 	def itervalues(self):
 		l = list()
 		for x in self._atvs:
@@ -537,18 +557,20 @@ class AppleTV(AirplayControl):
 		AirplayControl.__init__(self, self.ip)
 
 	def flick(self, flick_object):
-		if issubclass(flick_object.__class__, Flickable):
+		if not self.started.isSet():
+			self.start()
+		if isinstance(flick_object, Flickable):
 			url = None
 			try:
 				url = flick_object.getURL()
 			except Exception:
 				raise Exception("%s does not have getURL() interface method" % str(flick_object.__class__))
-			if url is not None and issubclass(url.__class__, str) and len(url) > 0:
-				AirFlick(url, self.ip)
+			if url is not None and isinstance(url, str) and len(url) > 0:
+				self._flick(url)
 			else:
 				raise Exception("%s did not return a proper value from getURL() interface" % str(flick_object.__class__))
-		elif issubclass(flick_object.__class__, str):
-			AirFlick(flick_object, self.ip)
+		elif isinstance(flick_object, str):
+			self._flick(flick_object)
 		else:
 			raise TypeError
 
@@ -601,4 +623,73 @@ def resolve_host(host, timeout=10):
 	finally:
 		query_sdRef.close()
 	return ip_addr
+def is_valid_ip(ip):
+	try:
+		ip_sects = ip.split(".")
+		if len(ip_sects) != 4:
+			return False
+		if len([sect for sect in ip_sects if int(sect) <= 255]) != 4:
+			return False
+		re_ip = re.search(r'[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}', ip, re.I)
+		if re_ip:
+			return True
+		return False
+	except Exception:
+		return False
 
+class AirplayHTTPHandler(urllib2.HTTPHandler):
+	def do_open(self, http_class, req):
+		host = req.get_host()
+		if not host:
+			raise urllib2.URLError('no host given')
+		h = http_class(host, timeout=req.timeout)
+		h.set_debuglevel(self._debuglevel)
+
+		headers = dict(req.headers)
+		headers.update(req.unredirected_hdrs)
+		
+		if req._tunnel_host:
+			tunnel_headers = {}
+			proxy_auth_hdr = "Proxy-Authorization"
+			if proxy_auth_hdr in headers:
+				tunnel_headers[proxy_auth_hdr] = headers[proxy_auth_hdr]
+				del headers[proxy_auth_hdr]
+			req._set_tunnel(req._tunnel_host, headers=tunnel_headers)
+		
+		try:
+			h.request(req.get_method(), req.get_selector(), req.data, headers)
+			r = h.getresponse()
+		except socket.error, err:
+			raise urllib2.URLError(err)
+		r.recv = r.read
+		fp = socket._fileobject(r, close=True)
+
+		resp = urllib.addinfourl(fp, r.msg, req.get_full_url())
+		resp.code = r.status
+		resp.msg = r.reason
+		return resp
+
+	def do_request_(self, request):
+		host = request.get_host()
+		if not host:
+		    raise urllib2.URLError('no host given')
+
+		if request.has_data():  # POST
+		    data = request.get_data()
+		    if not request.has_header('Content-length'):
+			request.add_unredirected_header(
+			    'Content-length', '%d' % len(data))
+
+		sel_host = host
+		if request.has_proxy():
+		    scheme, sel = splittype(request.get_selector())
+		    sel_host, sel_path = splithost(sel)
+
+		#if not request.has_header('Host'):
+		 #   request.add_unredirected_header('Host', sel_host)
+		for name, value in self.parent.addheaders:
+		    if not request.has_header(name):
+			request.add_unredirected_header(name, value)
+
+		return request
+			
