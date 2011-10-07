@@ -206,7 +206,7 @@ class AirplayControl(threading.Thread):
 		if float(rate) == self.rate or float(rate) > 30 or float(rate) < -30:
 			return
 		data = '/rate?value=' + str(rate)
-		self._execute(data)
+		self._execute(data, post=True)
 
 	def scrub(self, p):
 		self.checkIP()
@@ -219,7 +219,7 @@ class AirplayControl(threading.Thread):
 		self.checkIP()
 		self.rate = 1.00000
 		data = '/rate?value=' + str(self.rate)
-		self._execute(data)
+		self._execute(data, post=True)
 		self._isPlaying = True
 
 	def info(self):
@@ -245,8 +245,12 @@ class AirplayControl(threading.Thread):
 		if url is None or len(str(url)) < 1:
 			raise Exception("Invalid URL: " + str(url))
 		data = '/play'
-		post = 'Content-Location: ' + url + '\nStart-Position:%######f\n' % round(float(start), 6)
-		return self._execute(data, post)
+		post = 'Content-Location: ' + url + '\nStart-Position:0.00000'
+		#Start-Position:%######f\n' % round(float(start), 6)
+		self._execute(data, post)
+		time.sleep(.5)
+		self.play()
+
 	
 	def _execute(self, data, post=False):
 		self.checkIP()
@@ -528,12 +532,12 @@ class findAppleTV(threading.Thread):
 	def __getitem__(self, key):
 		if isinstance(key, int):
 			temp = self._atvs[key]
-			temp.start()
-			return
+			#temp.start()
+			return temp
 		elif isinstance(key, str):
 			for item in self._atvs:
 				if key.lower() in str(item.ip).lower() or key.lower() in str(item.hostname).lower():
-					item.start()
+					#item.start()
 					return item
 		else:
 			raise TypeError
