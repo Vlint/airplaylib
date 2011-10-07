@@ -89,6 +89,9 @@ class AirFile(Flickable):
 	def start(self):
 		import mongoose
 		self.server = mongoose.Mongoose(None, listening_ports=self.port, enable_directory_listing='no', document_root=os.path.dirname(self.serve_file_path))
+	def stop(self):
+		if self.server is not None:
+			self.server.stop()
 
 	def get_local_ips(self):
 		self.local_ips = [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")]
