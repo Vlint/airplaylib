@@ -263,7 +263,7 @@ class AirplayControl(threading.Thread):
 		o = urllib2.build_opener(AirplayHTTPHandler)
 
 		try:
-			f = o.open(req, timeout=10)
+			f = o.open(req)
 			return f.read()
 		except Exception, e:
 			raise e
@@ -693,6 +693,7 @@ class AirplayHTTPHandler(urllib2.HTTPHandler):
 		for name, value in self.parent.addheaders:
 		    if not request.has_header(name):
 			request.add_unredirected_header(name, value)
+		request.timeout=10
 
 		return request
 			
