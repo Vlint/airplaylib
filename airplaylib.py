@@ -645,7 +645,7 @@ class AirplayHTTPHandler(urllib2.HTTPHandler):
 		host = req.get_host()
 		if not host:
 			raise urllib2.URLError('no host given')
-		h = http_class(host, timeout=5)
+		h = http_class(host)
 		h.set_debuglevel(self._debuglevel)
 
 		headers = dict(req.headers)
