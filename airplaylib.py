@@ -645,19 +645,11 @@ class AirplayHTTPHandler(urllib2.HTTPHandler):
 		host = req.get_host()
 		if not host:
 			raise urllib2.URLError('no host given')
-		h = http_class(host, timeout=req.timeout)
+		h = http_class(host, timeout=5)
 		h.set_debuglevel(self._debuglevel)
 
 		headers = dict(req.headers)
 		headers.update(req.unredirected_hdrs)
-		
-		if req._tunnel_host:
-			tunnel_headers = {}
-			proxy_auth_hdr = "Proxy-Authorization"
-			if proxy_auth_hdr in headers:
-				tunnel_headers[proxy_auth_hdr] = headers[proxy_auth_hdr]
-				del headers[proxy_auth_hdr]
-			req._set_tunnel(req._tunnel_host, headers=tunnel_headers)
 		
 		try:
 			h.request(req.get_method(), req.get_selector(), req.data, headers)
