@@ -159,7 +159,7 @@ class AirplayControl(threading.Thread):
 	def run(self):
 		while self.started.isSet():
 			self.update_info()
-			time.sleep(.5)
+			time.sleep(1)
 
 	def start(self):
 		self.started.set()
@@ -245,8 +245,7 @@ class AirplayControl(threading.Thread):
 		if url is None or len(str(url)) < 1:
 			raise Exception("Invalid URL: " + str(url))
 		data = '/play'
-		post = 'Content-Location: ' + url + '\nStart-Position:0.00000'
-		#Start-Position:%######f\n' % round(float(start), 6)
+		post = 'Content-Location: ' + url + '\nStart-Position:%######f\n' % round(float(start), 6)
 		self._execute(data, post)
 		time.sleep(.5)
 		self.play()
@@ -266,8 +265,8 @@ class AirplayControl(threading.Thread):
 		try:
 			f = o.open(req)
 			return f.read()
-		except Exception:
-			raise Exception("Could not make airplay request")
+		except Exception, e:
+			raise e
 		
 class Youtube(Flickable):	
 	def __init__(self, url):
@@ -680,7 +679,7 @@ class AirplayHTTPHandler(urllib2.HTTPHandler):
 
 		if request.has_data():  # POST
 		    data = request.get_data()
-		    if not request.has_header('Content-length'):
+		    if not request.has_header('Content-Length'):
 			request.add_unredirected_header(
 			    'Content-length', '%d' % len(data))
 
