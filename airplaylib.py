@@ -263,7 +263,7 @@ class AirplayControl(threading.Thread):
 		o = urllib2.build_opener(AirplayHTTPHandler)
 
 		try:
-			f = o.open(req)
+			f = o.open(req, timeout=10)
 			return f.read()
 		except Exception, e:
 			raise e
